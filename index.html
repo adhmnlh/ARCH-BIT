@@ -5,200 +5,257 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Arch-Bit: Low-Level Data Translator</title>
 
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Google Fonts: Fira Code (monospace) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-    <!-- Custom Tailwind config & styles -->
     <script>
       tailwind.config = {
         theme: {
           extend: {
-            fontFamily: {
-              mono: ['"Fira Code"', 'Courier New', 'monospace'],
-            },
+            fontFamily: { mono: ['"Fira Code"', 'Courier New', 'monospace'] },
             colors: {
-              neon: {
-                green: '#00ff88',
-                blue:  '#00d4ff',
-                dim:   '#00ff8833',
-              },
-              surface: {
-                900: '#0a0d0f',
-                800: '#0f1317',
-                700: '#141a1f',
-                600: '#1c2530',
-                500: '#243040',
-              },
-            },
-            boxShadow: {
-              neon:    '0 0 12px #00ff8855, 0 0 30px #00ff8822',
-              'neon-blue': '0 0 12px #00d4ff55, 0 0 30px #00d4ff22',
-              card:    '0 4px 32px #00000088',
-            },
-          },
-        },
+              term: {
+                bg:      '#0d1117',
+                panel:   '#161b22',
+                border:  '#30363d',
+                green:   '#39d353',
+                cyan:    '#58a6ff',
+                yellow:  '#e3b341',
+                red:     '#f85149',
+                purple:  '#bc8cff',
+                muted:   '#8b949e',
+                dim:     '#21262d',
+              }
+            }
+          }
+        }
       };
     </script>
-
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css" />
   </head>
 
-  <body class="bg-surface-900 text-gray-200 font-mono min-h-screen flex flex-col">
+  <body class="bg-term-bg text-gray-300 font-mono min-h-screen flex flex-col overflow-x-hidden">
 
-    <!-- ════════════════════════ HEADER ════════════════════════ -->
-    <header class="border-b border-surface-600 px-6 py-4">
-      <div class="max-w-6xl mx-auto flex items-center justify-between flex-wrap gap-3">
+    <!-- Canvas: matrix rain background -->
+    <canvas id="matrixCanvas" class="fixed inset-0 pointer-events-none z-0 opacity-[0.035]"></canvas>
 
-        <!-- Brand -->
-        <div class="flex items-center gap-3">
-          <span class="logo-icon text-2xl select-none">⬡</span>
-          <div>
-            <h1 class="text-lg font-bold tracking-widest text-neon-green leading-none">
-              ARCH-BIT
-            </h1>
-            <p class="text-xs text-gray-500 tracking-widest">LOW-LEVEL DATA TRANSLATOR</p>
-          </div>
+    <!-- ══════════════════ TOPBAR (Linux title bar) ══════════════════ -->
+    <div class="relative z-10 window-titlebar flex items-center gap-2 px-4 py-2 border-b border-term-border select-none">
+      <!-- Traffic lights -->
+      <span class="tl-btn tl-red"   title="Close"></span>
+      <span class="tl-btn tl-yellow" title="Minimize"></span>
+      <span class="tl-btn tl-green" title="Maximize"></span>
+
+      <span class="flex-1 text-center text-xs text-term-muted tracking-widest">
+        arch-bit — low-level data translator — bash
+      </span>
+
+      <!-- Live clock -->
+      <span id="liveClock" class="text-xs text-term-muted tabular-nums"></span>
+    </div>
+
+    <!-- ══════════════════ HEADER / PROMPT ══════════════════ -->
+    <header class="relative z-10 px-5 pt-5 pb-3 border-b border-term-border">
+      <div class="max-w-6xl mx-auto">
+
+        <!-- Boot line (animated once) -->
+        <div id="bootLine" class="text-xs text-term-green mb-3 boot-text" aria-hidden="true"></div>
+
+        <!-- Prompt row -->
+        <div class="flex items-center flex-wrap gap-x-0 gap-y-1">
+          <span class="prompt-user">user</span><span class="prompt-at">@</span><span class="prompt-host">arch-bit</span>
+          <span class="prompt-colon">:</span><span class="prompt-path">~</span>
+          <span class="prompt-dollar">$&nbsp;</span>
+          <h1 class="text-term-green font-bold tracking-wider text-base prompt-cmd">./arch-bit <span class="text-term-cyan">--interactive</span></h1>
         </div>
 
-        <!-- Status badge -->
-        <div class="flex items-center gap-2 text-xs text-gray-500">
-          <span class="status-dot inline-block w-2 h-2 rounded-full bg-neon-green"></span>
-          <span>SYSTEM ONLINE</span>
-          <span class="mx-2 text-surface-600">|</span>
-          <span id="charCount" class="text-neon-green">0</span>
-          <span>&nbsp;CHARS</span>
-        </div>
+        <!-- Subtitle / description -->
+        <p class="text-xs text-term-muted mt-2 leading-relaxed">
+          <span class="text-term-yellow">#</span> Bidirectional low-level data translator.
+          Pilih <span class="text-term-green">mode konversi</span>, lalu ketik di panel INPUT.
+        </p>
 
+        <!-- Stats bar -->
+        <div class="flex items-center gap-4 mt-3 text-xs text-term-muted flex-wrap">
+          <span><span class="status-dot"></span> ONLINE</span>
+          <span>│</span>
+          <span>MODE: <span id="modeLabel" class="text-term-yellow">TEXT → BIN / HEX</span></span>
+          <span>│</span>
+          <span>INPUT: <span id="charCount" class="text-term-green">0</span> CHARS</span>
+          <span>│</span>
+          <span>OUTPUT: <span id="byteCount" class="text-term-cyan">0</span> BYTES</span>
+        </div>
       </div>
     </header>
 
-    <!-- ════════════════════════ MAIN ════════════════════════ -->
-    <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-8">
+    <!-- ══════════════════ MAIN ══════════════════ -->
+    <main class="relative z-10 flex-1 max-w-6xl w-full mx-auto px-4 py-6">
 
-      <!-- Subtitle -->
-      <section class="mb-8 text-center">
-        <p class="text-sm text-gray-500 leading-relaxed max-w-2xl mx-auto">
-          Visualisasikan bagaimana karakter teks dikonversi menjadi representasi mesin pada
-          level <span class="text-neon-green font-semibold">sirkuit (Biner)</span> dan
-          <span class="text-neon-blue font-semibold">memori (Hexadesimal)</span>.
-          Ketik di panel input — output diperbarui secara <em>real-time</em>.
-        </p>
+      <!-- ── MODE SELECTOR TABS ── -->
+      <section class="mb-5" aria-label="Conversion mode selector">
+        <p class="text-xs text-term-muted mb-2 tracking-widest uppercase">▸ Select Conversion Mode</p>
+        <div class="flex flex-wrap gap-2" role="tablist" aria-label="Conversion modes">
+
+          <button class="mode-tab active" data-mode="text-to-both" role="tab" aria-selected="true">
+            <span class="mode-tab-icon">T</span>
+            <span>Text <span class="text-term-muted">→</span> Bin + Hex</span>
+          </button>
+
+          <button class="mode-tab" data-mode="bin-to-text" role="tab" aria-selected="false">
+            <span class="mode-tab-icon">01</span>
+            <span>Binary <span class="text-term-muted">→</span> Text</span>
+          </button>
+
+          <button class="mode-tab" data-mode="hex-to-text" role="tab" aria-selected="false">
+            <span class="mode-tab-icon">0x</span>
+            <span>Hex <span class="text-term-muted">→</span> Text</span>
+          </button>
+
+          <button class="mode-tab" data-mode="bin-to-hex" role="tab" aria-selected="false">
+            <span class="mode-tab-icon">01</span>
+            <span>Binary <span class="text-term-muted">→</span> Hex</span>
+          </button>
+
+          <button class="mode-tab" data-mode="hex-to-bin" role="tab" aria-selected="false">
+            <span class="mode-tab-icon">0x</span>
+            <span>Hex <span class="text-term-muted">→</span> Binary</span>
+          </button>
+
+        </div>
       </section>
 
-      <!-- ── Panel Grid ── -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <!-- ── PANELS (dynamically reconfigured by JS) ── -->
+      <div id="panelGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
 
-        <!-- Panel 1 · TEXT INPUT -->
-        <article class="panel panel-green flex flex-col" aria-label="Text Input Panel">
-          <header class="panel-header">
-            <span class="panel-label">01</span>
-            <span class="panel-title text-neon-green">TEXT INPUT</span>
-            <span class="panel-badge">ASCII / UTF-8</span>
-          </header>
-          <p class="panel-desc">Ketik teks di sini. Setiap karakter akan dipetakan ke kode ASCII.</p>
-          <textarea
-            id="inputText"
-            class="panel-textarea flex-1 focus:outline-none focus:ring-2 focus:ring-neon-green/40"
-            placeholder="Ketik teks di sini..."
-            spellcheck="false"
-            autocomplete="off"
-            aria-label="Input text"
-          ></textarea>
-          <div class="panel-footer">
-            <span class="text-gray-600 text-xs">charCodeAt(0) per karakter</span>
-            <button id="clearBtn" class="clear-btn" aria-label="Clear input">✕ CLEAR</button>
+        <!-- INPUT PANEL -->
+        <article class="term-panel" id="inputPanel" aria-label="Input Panel">
+          <div class="term-panel-header">
+            <span class="term-panel-dot dot-green"></span>
+            <span id="inputPanelTitle" class="term-panel-title">TEXT INPUT</span>
+            <span id="inputPanelBadge" class="term-panel-badge">ASCII / UTF-8</span>
+            <span class="flex-1"></span>
+            <button id="clearBtn" class="term-btn term-btn-red" aria-label="Clear input">✕ CLR</button>
+            <button id="pasteBtn" class="term-btn" aria-label="Paste from clipboard">⌘ PASTE</button>
+          </div>
+          <div class="term-panel-body">
+            <div class="term-line-numbers" id="lineNumbers" aria-hidden="true"></div>
+            <textarea
+              id="inputArea"
+              class="term-textarea"
+              placeholder="Ketik atau paste di sini..."
+              spellcheck="false"
+              autocomplete="off"
+              aria-label="Input area"
+            ></textarea>
+          </div>
+          <div class="term-panel-footer">
+            <span id="inputHint" class="text-term-muted text-xs">charCodeAt(0) per char</span>
+            <span id="inputInfo" class="text-term-muted text-xs"></span>
           </div>
         </article>
 
-        <!-- Panel 2 · BINARY OUTPUT -->
-        <article class="panel panel-green flex flex-col" aria-label="Binary Output Panel">
-          <header class="panel-header">
-            <span class="panel-label">02</span>
-            <span class="panel-title text-neon-green">BINARY</span>
-            <span class="panel-badge">Base-2 · 8-bit</span>
-          </header>
-          <p class="panel-desc">Representasi biner 8-bit per karakter. Setiap blok = 1 byte di sirkuit.</p>
-          <textarea
-            id="outputBinary"
-            class="panel-textarea flex-1 focus:outline-none focus:ring-2 focus:ring-neon-green/40"
-            readonly
-            placeholder="Output biner akan muncul di sini..."
-            aria-label="Binary output"
-            aria-live="polite"
-          ></textarea>
-          <div class="panel-footer">
-            <span class="text-gray-600 text-xs">.toString(2).padStart(8, '0')</span>
-            <button class="copy-btn" data-target="outputBinary" aria-label="Copy binary">⧉ COPY</button>
-          </div>
-        </article>
+        <!-- OUTPUT PANEL (single, or two stacked in text-to-both mode) -->
+        <div id="outputColumn" class="flex flex-col gap-4">
 
-        <!-- Panel 3 · HEX OUTPUT -->
-        <article class="panel panel-blue flex flex-col" aria-label="Hexadecimal Output Panel">
-          <header class="panel-header">
-            <span class="panel-label">03</span>
-            <span class="panel-title text-neon-blue">HEXADECIMAL</span>
-            <span class="panel-badge">Base-16 · Mem</span>
-          </header>
-          <p class="panel-desc">Representasi hex memori. Setiap pasang digit = 1 byte di RAM.</p>
-          <textarea
-            id="outputHex"
-            class="panel-textarea flex-1 focus:outline-none focus:ring-2 focus:ring-neon-blue/40"
-            readonly
-            placeholder="Output hex akan muncul di sini..."
-            aria-label="Hexadecimal output"
-            aria-live="polite"
-          ></textarea>
-          <div class="panel-footer">
-            <span class="text-gray-600 text-xs">.toString(16).toUpperCase()</span>
-            <button class="copy-btn" data-target="outputHex" aria-label="Copy hex">⧉ COPY</button>
-          </div>
-        </article>
+          <!-- OUTPUT A -->
+          <article class="term-panel flex-1" id="outputPanelA" aria-label="Output Panel A">
+            <div class="term-panel-header">
+              <span class="term-panel-dot dot-cyan"></span>
+              <span id="outputATitleEl" class="term-panel-title text-term-green">BINARY</span>
+              <span id="outputABadge" class="term-panel-badge">Base-2 · 8-bit</span>
+              <span class="flex-1"></span>
+              <button class="copy-btn term-btn" data-target="outputAreaA" aria-label="Copy output A">⧉ COPY</button>
+            </div>
+            <div class="term-panel-body no-gutter">
+              <textarea
+                id="outputAreaA"
+                class="term-textarea output-area"
+                readonly
+                placeholder="Output akan muncul di sini..."
+                aria-label="Output A"
+                aria-live="polite"
+              ></textarea>
+            </div>
+            <div class="term-panel-footer">
+              <span id="outputAHint" class="text-term-muted text-xs">.toString(2).padStart(8,'0')</span>
+            </div>
+          </article>
 
-      </div><!-- /grid -->
+          <!-- OUTPUT B (only visible in text-to-both mode) -->
+          <article class="term-panel flex-1" id="outputPanelB" aria-label="Output Panel B">
+            <div class="term-panel-header">
+              <span class="term-panel-dot dot-purple"></span>
+              <span id="outputBTitleEl" class="term-panel-title text-term-cyan">HEXADECIMAL</span>
+              <span id="outputBBadge" class="term-panel-badge">Base-16 · Mem</span>
+              <span class="flex-1"></span>
+              <button class="copy-btn term-btn" data-target="outputAreaB" aria-label="Copy output B">⧉ COPY</button>
+            </div>
+            <div class="term-panel-body no-gutter">
+              <textarea
+                id="outputAreaB"
+                class="term-textarea output-area output-hex"
+                readonly
+                placeholder="Output akan muncul di sini..."
+                aria-label="Output B"
+                aria-live="polite"
+              ></textarea>
+            </div>
+            <div class="term-panel-footer">
+              <span id="outputBHint" class="text-term-muted text-xs">.toString(16).toUpperCase()</span>
+            </div>
+          </article>
 
-      <!-- ── Per-Character Breakdown Table ── -->
-      <section class="mt-8" aria-label="Character breakdown table">
-        <h2 class="text-xs font-semibold tracking-widest text-gray-500 mb-3 uppercase">
-          ▸ Character Breakdown Table
-        </h2>
-        <div class="overflow-x-auto rounded-lg border border-surface-600 shadow-card">
-          <table class="w-full text-xs text-left table-fixed">
-            <thead class="bg-surface-700 text-gray-500 uppercase tracking-widest">
-              <tr>
-                <th class="px-4 py-3 w-12">#</th>
-                <th class="px-4 py-3 w-20">Char</th>
-                <th class="px-4 py-3 w-20">ASCII</th>
-                <th class="px-4 py-3 w-auto">Binary (8-bit)</th>
-                <th class="px-4 py-3 w-24">Hex</th>
+        </div><!-- /outputColumn -->
+
+      </div><!-- /panelGrid -->
+
+      <!-- ── ERROR / INFO BAR ── -->
+      <div id="errorBar" class="hidden term-error-bar mb-4" role="alert" aria-live="assertive">
+        <span class="text-term-red">✖ ERROR:</span>
+        <span id="errorMsg" class="text-term-muted ml-2 text-xs"></span>
+      </div>
+
+      <!-- ── BREAKDOWN TABLE ── -->
+      <section aria-label="Character breakdown table">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-xs font-semibold tracking-widest text-term-muted uppercase">▸ Byte Breakdown Table</h2>
+          <span id="tableRowCount" class="text-xs text-term-muted"></span>
+        </div>
+        <div class="overflow-x-auto term-table-wrap">
+          <table class="w-full text-xs text-left table-fixed min-w-[560px]">
+            <thead id="tableHead">
+              <tr class="bg-term-dim text-term-muted uppercase tracking-widest text-[0.65rem]">
+                <th class="px-3 py-2 w-10">#</th>
+                <th class="px-3 py-2 w-16">Input</th>
+                <th class="px-3 py-2 w-16">ASCII</th>
+                <th class="px-3 py-2">Binary (8-bit)</th>
+                <th class="px-3 py-2 w-20">Hex</th>
               </tr>
             </thead>
-            <tbody id="breakdownTableBody" class="divide-y divide-surface-600">
-              <!-- Rows inserted by JS -->
-            </tbody>
+            <tbody id="breakdownBody" class="divide-y divide-term-border"></tbody>
           </table>
-          <p id="tablePlaceholder" class="text-center text-gray-600 py-6 text-xs tracking-widest">
+          <p id="tablePlaceholder" class="text-center text-term-muted py-5 text-xs tracking-widest">
             — AWAITING INPUT —
           </p>
         </div>
       </section>
 
-    </main><!-- /main -->
+    </main>
 
-    <!-- ════════════════════════ FOOTER ════════════════════════ -->
-    <footer class="border-t border-surface-600 px-6 py-4 text-center text-xs text-gray-600">
-      <span>ARCH-BIT &nbsp;·&nbsp; Arsitektur &amp; Organisasi Komputer &nbsp;·&nbsp; Demonstrasi Konversi Data</span>
+    <!-- ══════════════════ FOOTER ══════════════════ -->
+    <footer class="relative z-10 border-t border-term-border px-5 py-3 flex items-center justify-between text-xs text-term-muted flex-wrap gap-2">
+      <span>
+        <span class="prompt-user">user</span><span class="prompt-at">@</span><span class="prompt-host">arch-bit</span>
+        <span class="prompt-colon">:</span><span class="prompt-path">~</span>
+        <span class="prompt-dollar">$</span>
+        <span class="ml-1 text-term-muted">exit 0</span>
+        <span class="cursor-blink ml-1">█</span>
+      </span>
+      <span>Arsitektur &amp; Organisasi Komputer · Demonstrasi Konversi Data</span>
     </footer>
 
-    <!-- JavaScript -->
     <script src="script.js"></script>
   </body>
 </html>

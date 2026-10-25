@@ -1,180 +1,668 @@
 /**
  * ============================================================
- * script.js  —  Arch-Bit: Low-Level Data Translator
+ * script.js  —  Arch-Bit: Low-Level Data Translator v2
  * Mata Kuliah: Arsitektur dan Organisasi Komputer
  *
- * Alur konversi:
- *   Teks (String)
- *     └─► split('')          → Array of characters
- *           └─► charCodeAt(0) → Kode ASCII (desimal)
- *                 ├─► toString(2).padStart(8,'0') → Biner 8-bit
- *                 └─► toString(16).toUpperCase()  → Hexadesimal
+ * FITUR BARU:
+ *   ✦ Bidirectional conversion — 5 mode bolak-balik:
+ *       1. text-to-both  : Text  → Binary + Hex
+ *       2. bin-to-text   : Binary → Text
+ *       3. hex-to-text   : Hex   → Text
+ *       4. bin-to-hex    : Binary → Hex
+ *       5. hex-to-bin    : Hex   → Binary
+ *   ✦ Linux terminal UI (matrix rain, boot sequence, live clock)
+ *   ✦ Line number gutter pada input panel
+ *   ✦ Paste button (Clipboard API read)
+ *   ✦ Error bar untuk input tidak valid
  * ============================================================
  */
 
 'use strict';
 
-// ── DOM References ──────────────────────────────────────────
-const inputText          = document.getElementById('inputText');
-const outputBinary       = document.getElementById('outputBinary');
-const outputHex          = document.getElementById('outputHex');
-const charCountDisplay   = document.getElementById('charCount');
-const breakdownTableBody = document.getElementById('breakdownTableBody');
-const tablePlaceholder   = document.getElementById('tablePlaceholder');
-const clearBtn           = document.getElementById('clearBtn');
-const copyBtns           = document.querySelectorAll('.copy-btn');
+/* ══════════════════════════════════════════════════════════
+   1. DOM REFERENCES
+   ══════════════════════════════════════════════════════════ */
+const inputArea        = document.getElementById('inputArea');
+const outputAreaA      = document.getElementById('outputAreaA');
+const outputAreaB      = document.getElementById('outputAreaB');
+const outputPanelB     = document.getElementById('outputPanelB');
+const inputPanelTitle  = document.getElementById('inputPanelTitle');
+const inputPanelBadge  = document.getElementById('inputPanelBadge');
+const inputHint        = document.getElementById('inputHint');
+const inputInfo        = document.getElementById('inputInfo');
+const outputATitleEl   = document.getElementById('outputATitleEl');
+const outputABadge     = document.getElementById('outputABadge');
+const outputAHint      = document.getElementById('outputAHint');
+const outputBTitleEl   = document.getElementById('outputBTitleEl');
+const outputBBadge     = document.getElementById('outputBBadge');
+const outputBHint      = document.getElementById('outputBHint');
+const charCountDisplay = document.getElementById('charCount');
+const byteCountDisplay = document.getElementById('byteCount');
+const modeLabel        = document.getElementById('modeLabel');
+const breakdownBody    = document.getElementById('breakdownBody');
+const tablePlaceholder = document.getElementById('tablePlaceholder');
+const tableRowCount    = document.getElementById('tableRowCount');
+const clearBtn         = document.getElementById('clearBtn');
+const pasteBtn         = document.getElementById('pasteBtn');
+const lineNumbers      = document.getElementById('lineNumbers');
+const errorBar         = document.getElementById('errorBar');
+const errorMsg         = document.getElementById('errorMsg');
+const modeTabs         = document.querySelectorAll('.mode-tab');
+const copyBtns         = document.querySelectorAll('.copy-btn');
 
+/* ══════════════════════════════════════════════════════════
+   2. STATE
+   ══════════════════════════════════════════════════════════ */
+let currentMode = 'text-to-both'; // default mode
 
-// ── Core Conversion Functions ───────────────────────────────
+/* ══════════════════════════════════════════════════════════
+   3. CORE CONVERSION FUNCTIONS
+   ══════════════════════════════════════════════════════════ */
+
+// ── 3a. Text → Binary / Hex ──────────────────────────────
 
 /**
- * Mengonversi satu karakter menjadi biner 8-bit.
+ * Satu karakter → biner 8-bit.
+ *   charCodeAt(0) → desimal ASCII
+ *   toString(2)   → string biner (mungkin < 8 digit)
+ *   padStart(8)   → padded ke tepat 8 bit (1 byte)
  *
- * Langkah:
- *  1. charCodeAt(0) → ambil nilai ASCII desimal karakter (mis. 'A' → 65)
- *  2. toString(2)   → ubah ke basis 2 (biner), hasilnya bisa < 8 digit (mis. '1000001')
- *  3. padStart(8,'0') → padding kiri dengan '0' agar selalu 8 digit (mis. '01000001')
- *
- * @param {string} char - Satu karakter
- * @returns {string} String biner 8-bit, contoh: '01000001'
+ * @param {string} char
+ * @returns {string}  e.g. 'A' → '01000001'
  */
 function charToBinary(char) {
-  const asciiCode  = char.charCodeAt(0);        // Step 1: ASCII code
-  const binaryRaw  = asciiCode.toString(2);     // Step 2: base-2 string
-  const binaryByte = binaryRaw.padStart(8, '0'); // Step 3: 8-bit padding
-  return binaryByte;
+  return char.charCodeAt(0).toString(2).padStart(8, '0');
 }
 
 /**
- * Mengonversi satu karakter menjadi hexadesimal (2 digit uppercase).
+ * Satu karakter → hex 2-digit uppercase.
+ *   charCodeAt(0) → desimal
+ *   toString(16)  → hex lowercase
+ *   padStart(2)   → selalu 2 digit (mis. '\t' (9) → '09')
  *
- * Langkah:
- *  1. charCodeAt(0)    → nilai ASCII desimal
- *  2. toString(16)     → ubah ke basis 16 (mis. 65 → '41')
- *  3. toUpperCase()    → ubah ke huruf kapital ('41' → '41')
- *  4. padStart(2, '0') → pastikan selalu 2 digit (mis. '\n' (10) → '0A')
- *
- * @param {string} char - Satu karakter
- * @returns {string} String hex 2-digit uppercase, contoh: '41'
+ * @param {string} char
+ * @returns {string}  e.g. 'A' → '41'
  */
 function charToHex(char) {
-  const asciiCode = char.charCodeAt(0);                       // Step 1
-  const hexRaw    = asciiCode.toString(16);                   // Step 2
-  const hexUpper  = hexRaw.toUpperCase();                     // Step 3
-  const hexByte   = hexUpper.padStart(2, '0');                // Step 4
-  return hexByte;
+  return char.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0');
 }
 
 /**
- * Mengonversi seluruh string teks menjadi output biner.
+ * String teks → deretan blok biner 8-bit, dipisah spasi.
+ * Menggunakan chain: split → map → join
  *
- * Menggunakan array method chain:
- *   split('')  → pecah string menjadi array karakter
- *   map(...)   → terapkan charToBinary() ke setiap karakter
- *   join(' ')  → gabung kembali dengan spasi sebagai pemisah byte
- *
- * @param {string} text - Teks input
- * @returns {string} Setiap karakter sebagai blok biner 8-bit, dipisah spasi
+ * @param {string} text
+ * @returns {string}  e.g. 'Hi' → '01001000 01101001'
  */
 function textToBinary(text) {
-  return text
-    .split('')                        // ["A", "r", "c", "h", ...]
-    .map(char => charToBinary(char))  // ["01000001", "01110010", ...]
-    .join(' ');                       // "01000001 01110010 ..."
+  return text.split('').map(charToBinary).join(' ');
 }
 
 /**
- * Mengonversi seluruh string teks menjadi output hexadesimal.
+ * String teks → deretan pasang digit hex, dipisah spasi.
  *
- * Pola yang sama dengan textToBinary, namun menggunakan charToHex().
- *
- * @param {string} text - Teks input
- * @returns {string} Setiap karakter sebagai pasang digit hex, dipisah spasi
+ * @param {string} text
+ * @returns {string}  e.g. 'Hi' → '48 69'
  */
 function textToHex(text) {
-  return text
-    .split('')                     // ["A", "r", "c", "h", ...]
-    .map(char => charToHex(char))  // ["41", "72", "63", "68", ...]
-    .join(' ');                    // "41 72 63 68 ..."
+  return text.split('').map(charToHex).join(' ');
 }
 
-
-// ── Table Builder ───────────────────────────────────────────
+// ── 3b. Binary → Text / Hex ──────────────────────────────
 
 /**
- * Membangun tabel breakdown per karakter ke dalam DOM.
- * Tabel memperlihatkan: index, karakter, ASCII, biner, hex.
- * Batas tampilan 128 baris agar tidak membebani DOM.
+ * Membersihkan string biner: hapus semua karakter selain 0 dan 1,
+ * lalu pecah menjadi array blok 8-bit.
  *
- * @param {string} text - Teks input
+ * Input bisa berupa:
+ *   "01001000 01101001"  → spasi sebagai separator
+ *   "0100100001101001"   → tanpa spasi (rawai panjang)
+ *
+ * @param {string} raw  - Input biner mentah dari user
+ * @returns {{ valid: boolean, blocks: string[] }}
  */
-function buildBreakdownTable(text) {
-  const MAX_ROWS = 128; // Batas tampilan agar performa tetap optimal
+function parseBinaryInput(raw) {
+  // Hapus semua karakter selain 0 dan 1
+  const clean = raw.replace(/[^01]/g, '');
 
-  // Kosongkan isi tabel sebelum mengisi ulang
-  breakdownTableBody.innerHTML = '';
+  if (clean.length === 0) return { valid: false, blocks: [] };
 
-  if (text.length === 0) {
-    // Jika tidak ada input, tampilkan placeholder
+  // Panjang harus kelipatan 8 (tiap byte = 8 bit)
+  if (clean.length % 8 !== 0) {
+    return {
+      valid: false,
+      blocks: [],
+      error: `Panjang bit ${clean.length} bukan kelipatan 8. Kurang ${8 - (clean.length % 8)} bit.`
+    };
+  }
+
+  // Pecah ke blok 8-bit
+  const blocks = clean.match(/.{8}/g); // regex: ambil 8 karakter per grup
+  return { valid: true, blocks };
+}
+
+/**
+ * Satu blok biner 8-bit → karakter teks.
+ *   parseInt(bin, 2) → konversi dari basis 2 ke desimal
+ *   String.fromCharCode() → kembalikan karakter dari kode ASCII
+ *
+ * @param {string} block  - 8-bit biner, contoh: '01001000'
+ * @returns {string}  karakter, contoh: 'H'
+ */
+function binaryBlockToChar(block) {
+  const decimal = parseInt(block, 2); // basis 2 → desimal
+  return String.fromCharCode(decimal); // desimal → karakter
+}
+
+/**
+ * Deretan biner → string teks.
+ * Parsing → validasi → map tiap blok ke karakter → join.
+ *
+ * @param {string} raw
+ * @returns {{ ok: boolean, result: string, error?: string }}
+ */
+function binaryToText(raw) {
+  const { valid, blocks, error } = parseBinaryInput(raw);
+  if (!valid) return { ok: false, result: '', error: error || 'Input biner tidak valid.' };
+  const text = blocks.map(binaryBlockToChar).join('');
+  return { ok: true, result: text };
+}
+
+/**
+ * Deretan biner → deretan hex.
+ * Setiap blok 8-bit dikonversi ke hex 2-digit.
+ *   parseInt(block, 2) → desimal dari biner
+ *   toString(16)       → hex
+ *
+ * @param {string} raw
+ * @returns {{ ok: boolean, result: string, error?: string }}
+ */
+function binaryToHex(raw) {
+  const { valid, blocks, error } = parseBinaryInput(raw);
+  if (!valid) return { ok: false, result: '', error: error || 'Input biner tidak valid.' };
+  const hex = blocks
+    .map(block => parseInt(block, 2).toString(16).toUpperCase().padStart(2, '0'))
+    .join(' ');
+  return { ok: true, result: hex };
+}
+
+// ── 3c. Hex → Text / Binary ──────────────────────────────
+
+/**
+ * Membersihkan string hex dan pecah menjadi array pasang digit.
+ * Mendukung format: "48 69", "4869", "0x48 0x69", "48,69"
+ *
+ * @param {string} raw
+ * @returns {{ valid: boolean, pairs: string[], error?: string }}
+ */
+function parseHexInput(raw) {
+  // Hapus prefix "0x", karakter non-hex, lalu ambil pasangan digit
+  const clean = raw.replace(/0x/gi, '').replace(/[^0-9a-fA-F]/g, '');
+
+  if (clean.length === 0) return { valid: false, pairs: [] };
+
+  if (clean.length % 2 !== 0) {
+    return {
+      valid: false,
+      pairs: [],
+      error: `Panjang hex ${clean.length} digit ganjil. Pastikan setiap byte = 2 digit hex.`
+    };
+  }
+
+  // Pecah ke pasangan 2-digit
+  const pairs = clean.match(/.{2}/g); // regex: ambil 2 karakter per grup
+  return { valid: true, pairs };
+}
+
+/**
+ * Satu pasang hex → karakter teks.
+ *   parseInt(hex, 16) → konversi dari basis 16 ke desimal
+ *   String.fromCharCode() → karakter
+ *
+ * @param {string} pair  - 2-digit hex, contoh: '48'
+ * @returns {string}  karakter, contoh: 'H'
+ */
+function hexPairToChar(pair) {
+  const decimal = parseInt(pair, 16); // basis 16 → desimal
+  return String.fromCharCode(decimal);
+}
+
+/**
+ * Deretan hex → string teks.
+ *
+ * @param {string} raw
+ * @returns {{ ok: boolean, result: string, error?: string }}
+ */
+function hexToText(raw) {
+  const { valid, pairs, error } = parseHexInput(raw);
+  if (!valid) return { ok: false, result: '', error: error || 'Input hex tidak valid.' };
+  const text = pairs.map(hexPairToChar).join('');
+  return { ok: true, result: text };
+}
+
+/**
+ * Deretan hex → deretan biner 8-bit.
+ *   parseInt(pair, 16) → desimal dari hex
+ *   toString(2).padStart(8) → biner 8-bit
+ *
+ * @param {string} raw
+ * @returns {{ ok: boolean, result: string, error?: string }}
+ */
+function hexToBinary(raw) {
+  const { valid, pairs, error } = parseHexInput(raw);
+  if (!valid) return { ok: false, result: '', error: error || 'Input hex tidak valid.' };
+  const binary = pairs
+    .map(pair => parseInt(pair, 16).toString(2).padStart(8, '0'))
+    .join(' ');
+  return { ok: true, result: binary };
+}
+
+/* ══════════════════════════════════════════════════════════
+   4. MODE CONFIGURATION
+   ══════════════════════════════════════════════════════════ */
+
+/**
+ * Konfigurasi tiap mode konversi:
+ *   label       → teks di header stats bar
+ *   inputTitle  → judul panel input
+ *   inputBadge  → badge info encoding input
+ *   inputHint   → hint JS method di footer input
+ *   inputPH     → placeholder textarea input
+ *   outputATitle, outputABadge, outputAHint → panel output pertama
+ *   outputBTitle, outputBBadge, outputBHint → panel output kedua (jika ada)
+ *   showPanelB  → apakah panel output B ditampilkan
+ *   convert     → fungsi konversi utama, dipanggil saat input berubah
+ */
+const MODE_CONFIG = {
+  'text-to-both': {
+    label:        'TEXT → BIN / HEX',
+    inputTitle:   'TEXT INPUT',
+    inputBadge:   'ASCII / UTF-8',
+    inputHint:    'charCodeAt(0) per char',
+    inputPH:      'Ketik teks di sini...',
+    outputATitle: 'BINARY',
+    outputABadge: 'Base-2 · 8-bit',
+    outputAHint:  ".toString(2).padStart(8,'0')",
+    outputAClass: 'output-area',
+    outputBTitle: 'HEXADECIMAL',
+    outputBBadge: 'Base-16 · Memory',
+    outputBHint:  '.toString(16).toUpperCase()',
+    outputBClass: 'output-area output-hex',
+    showPanelB:   true,
+    convert(raw) {
+      if (!raw) return { a: '', b: '', ok: true };
+      return { a: textToBinary(raw), b: textToHex(raw), ok: true };
+    }
+  },
+  'bin-to-text': {
+    label:        'BINARY → TEXT',
+    inputTitle:   'BINARY INPUT',
+    inputBadge:   'Base-2 · 8-bit blocks',
+    inputHint:    'pisahkan per byte, mis: 01001000 01101001',
+    inputPH:      'Ketik binary, contoh: 01001000 01101001',
+    outputATitle: 'TEXT OUTPUT',
+    outputABadge: 'ASCII / UTF-8',
+    outputAHint:  'parseInt(bin,2) → fromCharCode()',
+    outputAClass: 'output-area output-text',
+    showPanelB:   false,
+    convert(raw) {
+      if (!raw.trim()) return { a: '', ok: true };
+      return binaryToText(raw);
+    }
+  },
+  'hex-to-text': {
+    label:        'HEX → TEXT',
+    inputTitle:   'HEX INPUT',
+    inputBadge:   'Base-16 · supports 0x prefix',
+    inputHint:    'pisahkan per byte, mis: 48 69 atau 0x48 0x69',
+    inputPH:      'Ketik hex, contoh: 48 65 6C 6C 6F',
+    outputATitle: 'TEXT OUTPUT',
+    outputABadge: 'ASCII / UTF-8',
+    outputAHint:  'parseInt(hex,16) → fromCharCode()',
+    outputAClass: 'output-area output-text',
+    showPanelB:   false,
+    convert(raw) {
+      if (!raw.trim()) return { a: '', ok: true };
+      return hexToText(raw);
+    }
+  },
+  'bin-to-hex': {
+    label:        'BINARY → HEX',
+    inputTitle:   'BINARY INPUT',
+    inputBadge:   'Base-2 · 8-bit',
+    inputHint:    'kelipatan 8-bit per byte',
+    inputPH:      'Ketik binary, contoh: 01001000 01101001',
+    outputATitle: 'HEXADECIMAL',
+    outputABadge: 'Base-16 · Memory',
+    outputAHint:  'parseInt(bin,2).toString(16)',
+    outputAClass: 'output-area output-hex',
+    showPanelB:   false,
+    convert(raw) {
+      if (!raw.trim()) return { a: '', ok: true };
+      return binaryToHex(raw);
+    }
+  },
+  'hex-to-bin': {
+    label:        'HEX → BINARY',
+    inputTitle:   'HEX INPUT',
+    inputBadge:   'Base-16 · supports 0x prefix',
+    inputHint:    'mis: 48 65 6C atau 486C',
+    inputPH:      'Ketik hex, contoh: 41 72 63 68',
+    outputATitle: 'BINARY',
+    outputABadge: 'Base-2 · 8-bit',
+    outputAHint:  'parseInt(hex,16).toString(2).padStart(8)',
+    outputAClass: 'output-area',
+    showPanelB:   false,
+    convert(raw) {
+      if (!raw.trim()) return { a: '', ok: true };
+      return hexToBinary(raw);
+    }
+  }
+};
+
+/* ══════════════════════════════════════════════════════════
+   5. UI HELPERS
+   ══════════════════════════════════════════════════════════ */
+
+/** Tampilkan error bar dengan pesan */
+function showError(msg) {
+  errorMsg.textContent = msg;
+  errorBar.classList.remove('hidden');
+}
+
+/** Sembunyikan error bar */
+function hideError() {
+  errorBar.classList.add('hidden');
+  errorMsg.textContent = '';
+}
+
+/**
+ * Perbarui atribut CSS class pada elemen output area.
+ * Reset dulu semua class output, lalu tambahkan yang baru.
+ */
+function setOutputClass(el, classString) {
+  el.className = 'term-textarea ' + classString;
+}
+
+/**
+ * Update line numbers di gutter input panel.
+ * Hitung jumlah baris dari newline + 1, render sebagai div.
+ */
+function updateLineNumbers() {
+  const lines     = inputArea.value.split('\n').length;
+  const fragment  = document.createDocumentFragment();
+
+  for (let i = 1; i <= lines; i++) {
+    const div = document.createElement('div');
+    div.textContent = i;
+    fragment.appendChild(div);
+  }
+
+  lineNumbers.innerHTML = '';
+  lineNumbers.appendChild(fragment);
+
+  // Sinkronkan scroll gutter dengan textarea
+  lineNumbers.scrollTop = inputArea.scrollTop;
+}
+
+/** Update stats bar di header */
+function updateStats(inputLength, outputLength) {
+  charCountDisplay.textContent = inputLength;
+  byteCountDisplay.textContent = outputLength;
+}
+
+/* ══════════════════════════════════════════════════════════
+   6. BREAKDOWN TABLE
+   ══════════════════════════════════════════════════════════ */
+
+const MAX_TABLE_ROWS = 100;
+
+/**
+ * Bangun tabel breakdown berdasarkan mode aktif.
+ * Untuk text-to-both: tampilkan kolom Char / ASCII / Binary / Hex
+ * Untuk mode lainnya: tampilkan baris input → decoded result
+ *
+ * @param {string} inputRaw - Input mentah dari user
+ * @param {string} mode     - Mode aktif
+ */
+function buildBreakdownTable(inputRaw, mode) {
+  breakdownBody.innerHTML = '';
+
+  if (!inputRaw || !inputRaw.trim()) {
     tablePlaceholder.style.display = 'block';
+    tableRowCount.textContent = '';
     return;
   }
 
   tablePlaceholder.style.display = 'none';
-
-  // Ambil array karakter, batasi ke MAX_ROWS
-  const chars = text.split('').slice(0, MAX_ROWS);
-
-  // Buat fragment agar hanya satu reflow DOM (lebih efisien)
   const fragment = document.createDocumentFragment();
 
-  chars.forEach((char, index) => {
-    const asciiCode = char.charCodeAt(0);
-    const binary    = charToBinary(char);
-    const hex       = charToHex(char);
+  if (mode === 'text-to-both') {
+    // ── Mode teks → tampilkan per karakter ──
+    const chars = inputRaw.split('').slice(0, MAX_TABLE_ROWS);
 
-    // Tampilkan karakter yang tidak tercetak sebagai label khusus
-    const displayChar = asciiCode < 32
-      ? `<span style="color:#4b5563">[${asciiCode === 10 ? 'LF' : asciiCode === 13 ? 'CR' : asciiCode === 32 ? 'SP' : 'CTL'}]</span>`
-      : escapeHtml(char);
+    chars.forEach((char, idx) => {
+      const ascii  = char.charCodeAt(0);
+      const binary = charToBinary(char);
+      const hex    = charToHex(char);
 
-    const row = document.createElement('tr');
-    row.className = 'breakdown-row';
-    row.innerHTML = `
-      <td class="col-index">${index + 1}</td>
-      <td class="col-char">${displayChar}</td>
-      <td class="col-ascii">${asciiCode}</td>
-      <td class="col-binary">${binary}</td>
-      <td class="col-hex">0x${hex}</td>
-    `;
+      // Karakter kontrol (ASCII < 32) ditampilkan sebagai label
+      const displayChar = ascii < 32
+        ? `<span style="color:#3d444d">[${
+            ascii === 10 ? 'LF' : ascii === 13 ? 'CR' : ascii === 9 ? 'TAB' : ascii === 32 ? 'SP' : 'CTL'
+          }]</span>`
+        : escapeHtml(char);
 
-    fragment.appendChild(row);
-  });
+      const row = document.createElement('tr');
+      row.className = 'breakdown-row';
+      row.innerHTML = `
+        <td class="col-index">${idx + 1}</td>
+        <td class="col-char">${displayChar}</td>
+        <td class="col-ascii">${ascii}</td>
+        <td class="col-binary">${binary}</td>
+        <td class="col-hex">0x${hex}</td>
+      `;
+      fragment.appendChild(row);
+    });
 
-  // Jika teks melebihi batas tampilan, tambahkan baris keterangan
-  if (text.length > MAX_ROWS) {
-    const moreRow = document.createElement('tr');
-    moreRow.innerHTML = `
-      <td colspan="5" style="padding:0.5rem 1rem; color:#4b5563; text-align:center; font-size:0.7rem; letter-spacing:0.1em;">
-        ... dan ${text.length - MAX_ROWS} karakter lainnya (batas tampilan tabel: ${MAX_ROWS})
-      </td>
-    `;
-    fragment.appendChild(moreRow);
+    tableRowCount.textContent =
+      inputRaw.length > MAX_TABLE_ROWS
+        ? `(menampilkan ${MAX_TABLE_ROWS} dari ${inputRaw.length} karakter)`
+        : `(${inputRaw.length} karakter)`;
+
+    if (inputRaw.length > MAX_TABLE_ROWS) {
+      const moreRow = document.createElement('tr');
+      moreRow.innerHTML = `
+        <td colspan="5" style="padding:0.4rem 0.75rem;color:#3d444d;text-align:center;font-size:0.67rem;letter-spacing:0.08em">
+          ... +${inputRaw.length - MAX_TABLE_ROWS} karakter lagi
+        </td>`;
+      fragment.appendChild(moreRow);
+    }
+
+  } else if (mode === 'bin-to-text' || mode === 'hex-to-text') {
+    // ── Mode decode → tampilkan per byte → karakter ──
+    let pairs = [];
+
+    if (mode === 'bin-to-text') {
+      const parsed = parseBinaryInput(inputRaw);
+      if (!parsed.valid) { tablePlaceholder.style.display = 'block'; return; }
+      pairs = parsed.blocks.map(b => ({
+        input: b,
+        ascii: parseInt(b, 2),
+        hex:   parseInt(b, 2).toString(16).toUpperCase().padStart(2, '0')
+      }));
+    } else {
+      const parsed = parseHexInput(inputRaw);
+      if (!parsed.valid) { tablePlaceholder.style.display = 'block'; return; }
+      pairs = parsed.pairs.map(p => ({
+        input: p.toUpperCase(),
+        ascii: parseInt(p, 16),
+        binary: parseInt(p, 16).toString(2).padStart(8, '0')
+      }));
+    }
+
+    const slice = pairs.slice(0, MAX_TABLE_ROWS);
+    const colLabel = mode === 'bin-to-text' ? 'Binary' : 'Hex';
+
+    slice.forEach((item, idx) => {
+      const ascii = item.ascii;
+      const char  = ascii < 32 ? `<span style="color:#3d444d">[CTL]</span>` : escapeHtml(String.fromCharCode(ascii));
+      const binCell  = mode === 'bin-to-text'
+        ? `<td class="col-binary">${item.input}</td>`
+        : `<td class="col-binary">${item.binary || ''}</td>`;
+      const hexCell  = mode === 'bin-to-text'
+        ? `<td class="col-hex">0x${item.hex}</td>`
+        : `<td class="col-hex">0x${item.input}</td>`;
+
+      const row = document.createElement('tr');
+      row.className = 'breakdown-row';
+      row.innerHTML = `
+        <td class="col-index">${idx + 1}</td>
+        <td class="col-char">${char}</td>
+        <td class="col-ascii">${ascii}</td>
+        ${binCell}
+        ${hexCell}
+      `;
+      fragment.appendChild(row);
+    });
+
+    tableRowCount.textContent = `(${pairs.length} byte)`;
+
+  } else {
+    // ── Mode bin↔hex — tampilkan pasangan konversi ──
+    let pairs = [];
+
+    if (mode === 'bin-to-hex') {
+      const parsed = parseBinaryInput(inputRaw);
+      if (!parsed.valid) { tablePlaceholder.style.display = 'block'; return; }
+      pairs = parsed.blocks.map(b => ({
+        binary: b,
+        hex: parseInt(b, 2).toString(16).toUpperCase().padStart(2, '0'),
+        ascii: parseInt(b, 2)
+      }));
+    } else { // hex-to-bin
+      const parsed = parseHexInput(inputRaw);
+      if (!parsed.valid) { tablePlaceholder.style.display = 'block'; return; }
+      pairs = parsed.pairs.map(p => ({
+        hex:    p.toUpperCase(),
+        binary: parseInt(p, 16).toString(2).padStart(8, '0'),
+        ascii:  parseInt(p, 16)
+      }));
+    }
+
+    const slice = pairs.slice(0, MAX_TABLE_ROWS);
+    slice.forEach((item, idx) => {
+      const row = document.createElement('tr');
+      row.className = 'breakdown-row';
+      row.innerHTML = `
+        <td class="col-index">${idx + 1}</td>
+        <td class="col-char">${escapeHtml(String.fromCharCode(item.ascii < 128 ? item.ascii : 63))}</td>
+        <td class="col-ascii">${item.ascii}</td>
+        <td class="col-binary">${item.binary}</td>
+        <td class="col-hex">0x${item.hex}</td>
+      `;
+      fragment.appendChild(row);
+    });
+
+    tableRowCount.textContent = `(${pairs.length} byte)`;
   }
 
-  breakdownTableBody.appendChild(fragment);
+  breakdownBody.appendChild(fragment);
 }
 
-
-// ── Utility ─────────────────────────────────────────────────
+/* ══════════════════════════════════════════════════════════
+   7. MAIN UPDATE FUNCTION
+   ══════════════════════════════════════════════════════════ */
 
 /**
- * Escape karakter HTML agar tidak diinterpretasikan sebagai tag.
- * Penting untuk menampilkan karakter seperti '<', '>', '&' dengan aman.
- *
- * @param {string} str
- * @returns {string}
+ * Inti update: dipanggil tiap kali input berubah.
+ * Menjalankan konversi sesuai mode aktif, lalu memperbarui semua UI.
  */
+function updateOutputs() {
+  const raw    = inputArea.value;
+  const config = MODE_CONFIG[currentMode];
+
+  hideError();
+  updateLineNumbers();
+
+  // Jalankan fungsi konversi mode saat ini
+  const result = config.convert(raw);
+
+  // ── Tulis ke output A ──
+  outputAreaA.value = result.ok ? (result.a ?? result.result ?? '') : '';
+
+  // ── Tulis ke output B (hanya text-to-both) ──
+  if (config.showPanelB) {
+    outputAreaB.value = result.b ?? '';
+  }
+
+  // ── Tampilkan error jika ada ──
+  if (!result.ok && result.error && raw.trim().length > 0) {
+    showError(result.error);
+  }
+
+  // ── Hitung panjang output untuk stats bar ──
+  const outputLen = outputAreaA.value.replace(/\s/g, '').length / 2 || outputAreaA.value.length;
+  updateStats(raw.length, Math.ceil(outputLen));
+
+  // ── Rebuild tabel breakdown ──
+  buildBreakdownTable(raw, currentMode);
+}
+
+/* ══════════════════════════════════════════════════════════
+   8. MODE SWITCHING
+   ══════════════════════════════════════════════════════════ */
+
+/**
+ * Terapkan konfigurasi mode baru ke seluruh UI:
+ * judul panel, badge, hint, placeholder, visibilitas panel B,
+ * class warna output, dan label stats bar.
+ *
+ * @param {string} mode - key mode baru
+ */
+function applyMode(mode) {
+  currentMode   = mode;
+  const config  = MODE_CONFIG[mode];
+  const panelB  = outputPanelB;
+
+  // Update teks panel input
+  inputPanelTitle.textContent = config.inputTitle;
+  inputPanelBadge.textContent = config.inputBadge;
+  inputHint.textContent       = config.inputHint;
+  inputArea.placeholder       = config.inputPH;
+
+  // Update teks panel output A
+  outputATitleEl.textContent  = config.outputATitle;
+  outputABadge.textContent    = config.outputABadge;
+  outputAHint.textContent     = config.outputAHint;
+  setOutputClass(outputAreaA, config.outputAClass);
+
+  // Toggle panel B
+  if (config.showPanelB) {
+    panelB.style.display      = '';
+    outputBTitleEl.textContent = config.outputBTitle;
+    outputBBadge.textContent   = config.outputBBadge;
+    outputBHint.textContent    = config.outputBHint;
+    setOutputClass(outputAreaB, config.outputBClass);
+  } else {
+    panelB.style.display = 'none';
+  }
+
+  // Update stats mode label
+  modeLabel.textContent = config.label;
+
+  // Kosongkan output & error, lalu jalankan ulang konversi
+  outputAreaA.value = '';
+  outputAreaB.value = '';
+  hideError();
+  updateOutputs();
+}
+
+/* ══════════════════════════════════════════════════════════
+   9. UTILITY
+   ══════════════════════════════════════════════════════════ */
+
+/** Escape HTML untuk safe insertion di innerHTML */
 function escapeHtml(str) {
   return str
     .replace(/&/g, '&amp;')
@@ -183,88 +671,169 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-/**
- * Memperbarui semua output berdasarkan nilai teks saat ini.
- * Dipanggil setiap kali event 'input' terjadi pada inputText.
- */
-function updateOutputs() {
-  const text = inputText.value;
+/** Copy teks ke clipboard dengan feedback visual pada tombol */
+function copyToClipboard(btn, text) {
+  if (!text.trim()) return;
 
-  // ── 1. Perbarui counter karakter di header
-  charCountDisplay.textContent = text.length;
-
-  // ── 2. Perbarui panel output Biner
-  //       Jika teks kosong, kosongkan juga output-nya
-  outputBinary.value = text.length > 0 ? textToBinary(text) : '';
-
-  // ── 3. Perbarui panel output Hexadesimal
-  outputHex.value = text.length > 0 ? textToHex(text) : '';
-
-  // ── 4. Perbarui tabel breakdown per karakter
-  buildBreakdownTable(text);
+  navigator.clipboard.writeText(text)
+    .then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '✓ COPIED';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+      }, 1500);
+    })
+    .catch(() => {
+      // Fallback execCommand untuk browser lama
+      const tmp = document.createElement('textarea');
+      tmp.value = text;
+      document.body.appendChild(tmp);
+      tmp.select();
+      document.execCommand('copy');
+      document.body.removeChild(tmp);
+    });
 }
 
+/* ══════════════════════════════════════════════════════════
+   10. EVENT LISTENERS
+   ══════════════════════════════════════════════════════════ */
 
-// ── Event Listeners ─────────────────────────────────────────
+// Input: update real-time
+inputArea.addEventListener('input', updateOutputs);
 
-/**
- * Event: input
- * Dipicu setiap kali pengguna mengetik atau menghapus karakter.
- * Memastikan output selalu sinkron secara real-time tanpa tombol submit.
- */
-inputText.addEventListener('input', updateOutputs);
-
-/**
- * Event: click — Tombol CLEAR
- * Mengosongkan semua panel dan mereset tampilan.
- */
-clearBtn.addEventListener('click', () => {
-  inputText.value = '';
-  updateOutputs();     // Reset semua output
-  inputText.focus();   // Kembalikan fokus ke area input
+// Sinkronkan scroll gutter dengan textarea saat scroll
+inputArea.addEventListener('scroll', () => {
+  lineNumbers.scrollTop = inputArea.scrollTop;
 });
 
-/**
- * Event: click — Semua tombol COPY
- * Menyalin konten textarea target ke clipboard.
- * Menampilkan feedback visual singkat pada tombol.
- */
-copyBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    const targetId = btn.dataset.target;                // ID textarea target
-    const targetEl = document.getElementById(targetId);
+// Clear
+clearBtn.addEventListener('click', () => {
+  inputArea.value = '';
+  hideError();
+  updateOutputs();
+  inputArea.focus();
+});
 
-    if (!targetEl || targetEl.value.trim() === '') return; // Tidak ada yang dicopy jika kosong
+// Paste dari clipboard
+pasteBtn.addEventListener('click', () => {
+  navigator.clipboard.readText()
+    .then(text => {
+      inputArea.value = text;
+      updateOutputs();
+    })
+    .catch(() => {
+      inputArea.focus();
+      document.execCommand('paste');
+    });
+});
 
-    // Salin ke clipboard menggunakan Clipboard API modern
-    navigator.clipboard.writeText(targetEl.value)
-      .then(() => {
-        // Feedback visual: ubah teks tombol sementara
-        const originalText = btn.textContent;
-        btn.textContent    = '✓ COPIED';
-        btn.classList.add('copied');
+// Mode tabs
+modeTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    modeTabs.forEach(t => {
+      t.classList.remove('active');
+      t.setAttribute('aria-selected', 'false');
+    });
+    tab.classList.add('active');
+    tab.setAttribute('aria-selected', 'true');
 
-        setTimeout(() => {
-          btn.textContent = originalText;
-          btn.classList.remove('copied');
-        }, 1500);
-      })
-      .catch(() => {
-        // Fallback untuk browser lama yang tidak support Clipboard API
-        targetEl.select();
-        document.execCommand('copy');
-      });
+    // Kosongkan input saat ganti mode
+    inputArea.value = '';
+    applyMode(tab.dataset.mode);
+    inputArea.focus();
   });
 });
 
+// Copy buttons
+copyBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const el = document.getElementById(btn.dataset.target);
+    if (el) copyToClipboard(btn, el.value);
+  });
+});
 
-// ── Init ─────────────────────────────────────────────────────
+/* ══════════════════════════════════════════════════════════
+   11. VISUAL EXTRAS — Matrix Rain + Boot + Clock
+   ══════════════════════════════════════════════════════════ */
 
-/**
- * Inisialisasi aplikasi saat halaman selesai dimuat.
- * Fokuskan cursor ke area input agar siap digunakan langsung.
- */
+// ── Matrix Rain Canvas ───────────────────────────────────
+(function initMatrixRain() {
+  const canvas = document.getElementById('matrixCanvas');
+  const ctx    = canvas.getContext('2d');
+
+  const CHARS  = '01アイウエオカキクケコサシスセソタチツテト'; // biner + katakana
+  const FONT_SIZE = 14;
+  let columns, drops;
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    columns = Math.floor(canvas.width / FONT_SIZE);
+    drops   = Array(columns).fill(1);
+  }
+
+  function draw() {
+    // Fade jejak sebelumnya
+    ctx.fillStyle = 'rgba(13, 17, 23, 0.05)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = '#39d353';
+    ctx.font      = FONT_SIZE + 'px "Fira Code", monospace';
+
+    drops.forEach((y, i) => {
+      const char = CHARS[Math.floor(Math.random() * CHARS.length)];
+      ctx.fillText(char, i * FONT_SIZE, y * FONT_SIZE);
+
+      // Reset ke atas secara acak setelah melewati layar
+      if (y * FONT_SIZE > canvas.height && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+      drops[i]++;
+    });
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+  setInterval(draw, 55); // ~18 fps — ringan di CPU
+})();
+
+// ── Boot sequence typewriter ─────────────────────────────
+(function initBootSequence() {
+  const el  = document.getElementById('bootLine');
+  const msg = '[  OK  ] Loaded arch-bit v2.0 — bidirectional codec module initialized';
+  let i = 0;
+
+  const tick = setInterval(() => {
+    el.textContent = msg.slice(0, i++) + (i % 2 === 0 ? '▌' : '');
+    if (i > msg.length + 2) {
+      clearInterval(tick);
+      el.textContent = msg;
+    }
+  }, 28);
+})();
+
+// ── Live clock (header top-right) ────────────────────────
+(function initClock() {
+  const el = document.getElementById('liveClock');
+
+  function tick() {
+    const now = new Date();
+    const hh  = String(now.getHours()).padStart(2, '0');
+    const mm  = String(now.getMinutes()).padStart(2, '0');
+    const ss  = String(now.getSeconds()).padStart(2, '0');
+    el.textContent = `${hh}:${mm}:${ss}`;
+  }
+
+  tick();
+  setInterval(tick, 1000);
+})();
+
+/* ══════════════════════════════════════════════════════════
+   12. INIT
+   ══════════════════════════════════════════════════════════ */
 (function init() {
-  inputText.focus();
-  // Tidak ada initial value — tunggu input dari pengguna
+  applyMode('text-to-both'); // Mulai di mode default
+  inputArea.focus();
 })();

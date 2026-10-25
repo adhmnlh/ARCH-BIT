@@ -1,252 +1,348 @@
 /* ============================================================
-   style.css  —  Arch-Bit: Low-Level Data Translator
-   Theme: Dark Mode · Neon Green / Circuit Blue
+   style.css  —  Arch-Bit: Low-Level Data Translator v2
+   Theme: Linux Terminal / GitHub Dark + Neon accents
    ============================================================ */
 
-/* ── Base ────────────────────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
-}
+/* ── Reset & Base ────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 
 body {
-  background-color: #0a0d0f;
-  /* Subtle dot-grid pattern — evokes a PCB/circuit board */
-  background-image: radial-gradient(circle, #1c2530 1px, transparent 1px);
-  background-size: 28px 28px;
+  background-color: #0d1117;
+  font-family: 'Fira Code', 'Courier New', monospace;
 }
 
-/* Custom scrollbar — dark-themed */
-::-webkit-scrollbar         { width: 6px; height: 6px; }
-::-webkit-scrollbar-track   { background: #0f1317; }
-::-webkit-scrollbar-thumb   { background: #1c2530; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #00ff8855; }
-
-/* ── Logo hex icon pulse ─────────────────────────────────── */
-.logo-icon {
-  color: #00ff88;
-  animation: pulse-glow 3s ease-in-out infinite;
+/* Subtle scanline overlay — CRT effect */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(0,0,0,0.07) 3px,
+    rgba(0,0,0,0.07) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
 }
 
-@keyframes pulse-glow {
-  0%, 100% { text-shadow: 0 0 6px #00ff88aa, 0 0 16px #00ff8844; }
-  50%       { text-shadow: 0 0 14px #00ff88cc, 0 0 30px #00ff8866; }
+/* Custom scrollbar */
+::-webkit-scrollbar         { width: 5px; height: 5px; }
+::-webkit-scrollbar-track   { background: #0d1117; }
+::-webkit-scrollbar-thumb   { background: #30363d; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #39d35355; }
+
+/* ── Matrix canvas background ────────────────────────────── */
+#matrixCanvas { image-rendering: pixelated; }
+
+/* ── Window title bar ────────────────────────────────────── */
+.window-titlebar {
+  background: #161b22;
+  -webkit-app-region: drag;
+}
+
+/* Traffic light buttons */
+.tl-btn {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: default;
+  flex-shrink: 0;
+}
+.tl-red    { background: #f85149; box-shadow: 0 0 4px #f8514966; }
+.tl-yellow { background: #e3b341; box-shadow: 0 0 4px #e3b34166; }
+.tl-green  { background: #39d353; box-shadow: 0 0 4px #39d35366; }
+
+/* ── Shell prompt coloring ───────────────────────────────── */
+.prompt-user   { color: #39d353; font-weight: 700; }
+.prompt-at     { color: #8b949e; }
+.prompt-host   { color: #58a6ff; font-weight: 700; }
+.prompt-colon  { color: #8b949e; }
+.prompt-path   { color: #bc8cff; }
+.prompt-dollar { color: #8b949e; margin-left: 2px; }
+.prompt-cmd    { display: inline; }
+
+/* ── Boot line typewriter ────────────────────────────────── */
+.boot-text {
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  min-height: 1.2em;
+  color: #39d35388;
 }
 
 /* ── Status dot blink ────────────────────────────────────── */
 .status-dot {
-  animation: blink 1.8s step-start infinite;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #39d353;
+  box-shadow: 0 0 6px #39d35399;
+  animation: blink-dot 1.6s step-start infinite;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+@keyframes blink-dot {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.15; }
 }
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.2; }
+/* ── Cursor blink ────────────────────────────────────────── */
+.cursor-blink {
+  color: #39d353;
+  animation: blink-cursor 1s step-start infinite;
+}
+@keyframes blink-cursor {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0; }
 }
 
-/* ── Panel card ──────────────────────────────────────────── */
-.panel {
-  background-color: #0f1317;
-  border: 1px solid #1c2530;
-  border-radius: 0.75rem;
-  padding: 1.25rem;
-  box-shadow: 0 4px 32px #00000088;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
-  min-height: 340px;
+/* ── Mode tabs ───────────────────────────────────────────── */
+.mode-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: #8b949e;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 5px;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  transition: color 0.18s, border-color 0.18s, box-shadow 0.18s, background 0.18s;
+  white-space: nowrap;
+}
+.mode-tab:hover {
+  color: #e2e8f0;
+  border-color: #58a6ff66;
+}
+.mode-tab.active {
+  color: #39d353;
+  background: #0d2818;
+  border-color: #39d353aa;
+  box-shadow: 0 0 10px #39d35322, inset 0 0 8px #39d35310;
+}
+.mode-tab-icon {
+  font-size: 0.6rem;
+  color: #8b949e;
+  background: #21262d;
+  border-radius: 3px;
+  padding: 0.05rem 0.28rem;
+  letter-spacing: 0.03em;
+  font-weight: 700;
+}
+.mode-tab.active .mode-tab-icon {
+  background: #12361e;
+  color: #39d353;
 }
 
-.panel-green:hover {
-  border-color: #00ff8840;
-  box-shadow: 0 4px 32px #00000088, 0 0 24px #00ff8818;
+/* ── Term panels ─────────────────────────────────────────── */
+.term-panel {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.term-panel:hover {
+  border-color: #58a6ff44;
+  box-shadow: 0 0 20px #58a6ff0d;
 }
 
-.panel-blue:hover {
-  border-color: #00d4ff40;
-  box-shadow: 0 4px 32px #00000088, 0 0 24px #00d4ff18;
-}
-
-/* ── Panel header row ────────────────────────────────────── */
-.panel-header {
+/* Panel header bar */
+.term-panel-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  background: #21262d;
+  border-bottom: 1px solid #30363d;
+  padding: 0.5rem 0.85rem;
+  flex-shrink: 0;
 }
 
-.panel-label {
-  font-size: 0.6rem;
-  color: #57606a;
-  letter-spacing: 0.1em;
-  min-width: 1.5rem;
+/* Coloured dot in panel header */
+.term-panel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
+.dot-green  { background: #39d353; box-shadow: 0 0 5px #39d35377; }
+.dot-cyan   { background: #58a6ff; box-shadow: 0 0 5px #58a6ff77; }
+.dot-yellow { background: #e3b341; box-shadow: 0 0 5px #e3b34177; }
+.dot-purple { background: #bc8cff; box-shadow: 0 0 5px #bc8cff77; }
 
-.panel-title {
-  font-size: 0.75rem;
+.term-panel-title {
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.18em;
-  flex: 1;
+  letter-spacing: 0.16em;
+  color: #e2e8f0;
 }
 
-.panel-badge {
-  font-size: 0.6rem;
-  color: #57606a;
-  background: #141a1f;
-  border: 1px solid #1c2530;
+.term-panel-badge {
+  font-size: 0.58rem;
+  color: #8b949e;
+  background: #161b22;
+  border: 1px solid #30363d;
   border-radius: 999px;
-  padding: 0.1rem 0.55rem;
-  letter-spacing: 0.08em;
+  padding: 0.05rem 0.5rem;
+  letter-spacing: 0.07em;
   white-space: nowrap;
 }
 
-/* ── Panel description ───────────────────────────────────── */
-.panel-desc {
-  font-size: 0.7rem;
-  color: #4b5563;
-  margin-bottom: 0.75rem;
-  line-height: 1.5;
-  font-family: 'Fira Code', 'Courier New', monospace;
+/* Panel body — line numbers + textarea side-by-side */
+.term-panel-body {
+  display: flex;
+  flex: 1;
+  min-height: 200px;
+  overflow: hidden;
 }
 
-/* ── Textarea ────────────────────────────────────────────── */
-.panel-textarea {
-  width: 100%;
-  background-color: #141a1f;
-  border: 1px solid #1c2530;
-  border-radius: 0.5rem;
-  color: #00ff88;
+/* Line number gutter */
+.term-line-numbers {
+  min-width: 36px;
+  background: #0d1117;
+  border-right: 1px solid #21262d;
+  padding: 0.65rem 0.35rem;
+  text-align: right;
+  font-size: 0.68rem;
+  line-height: 1.72;
+  color: #3d444d;
+  user-select: none;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Textarea base */
+.term-textarea {
+  flex: 1;
+  background: #0d1117;
+  border: none;
+  color: #e2e8f0;
   font-family: 'Fira Code', 'Courier New', monospace;
   font-size: 0.78rem;
-  line-height: 1.8;
-  padding: 0.75rem;
+  line-height: 1.72;
+  padding: 0.65rem 0.75rem;
   resize: none;
-  min-height: 160px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  caret-color: #00ff88;
+  width: 100%;
+  caret-color: #39d353;
+  outline: none;
+}
+.term-textarea:focus {
+  box-shadow: inset 0 0 0 1px #39d35340;
+}
+.term-textarea::placeholder {
+  color: #3d444d;
 }
 
-/* Input panel: slightly brighter caret/selection */
-#inputText {
-  color: #e2e8f0;
-  caret-color: #00ff88;
-}
-
-#inputText:focus {
-  border-color: #00ff8866;
-  box-shadow: 0 0 0 2px #00ff8818, inset 0 0 8px #00ff8808;
-}
-
-/* Read-only output textareas */
-#outputBinary,
-#outputHex {
+/* Output textareas — no editable caret style */
+.output-area {
   cursor: default;
-  user-select: text;
+  color: #39d353;        /* green for binary */
+  letter-spacing: 0.1em;
+}
+.output-area.output-hex {
+  color: #58a6ff;        /* blue for hex */
+}
+.output-area.output-text {
+  color: #e2e8f0;        /* white for decoded text */
+  letter-spacing: 0;
 }
 
-#outputBinary {
-  color: #00ff88;
+/* no-gutter: output panels don't need line numbers so remove indent */
+.no-gutter .term-textarea {
+  padding-left: 0.75rem;
 }
 
-#outputHex {
-  color: #00d4ff;
-}
-
-#outputHex:focus {
-  border-color: #00d4ff66;
-  box-shadow: 0 0 0 2px #00d4ff18, inset 0 0 8px #00d4ff08;
-}
-
-.panel-textarea::placeholder {
-  color: #2d3748;
-}
-
-/* ── Panel footer row ────────────────────────────────────── */
-.panel-footer {
+/* Panel footer */
+.term-panel-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 0.6rem;
+  background: #161b22;
+  border-top: 1px solid #21262d;
+  padding: 0.35rem 0.85rem;
+  flex-shrink: 0;
 }
 
-/* ── Clear button ────────────────────────────────────────── */
-.clear-btn {
+/* ── Small terminal buttons ──────────────────────────────── */
+.term-btn {
   font-family: 'Fira Code', monospace;
-  font-size: 0.65rem;
-  letter-spacing: 0.1em;
-  color: #4b5563;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: #8b949e;
   background: transparent;
-  border: 1px solid #1c2530;
+  border: 1px solid #30363d;
   border-radius: 4px;
-  padding: 0.2rem 0.55rem;
+  padding: 0.18rem 0.5rem;
   cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
 }
-
-.clear-btn:hover {
-  color: #f87171;
-  border-color: #f8717155;
+.term-btn:hover {
+  color: #e2e8f0;
+  border-color: #8b949e88;
 }
-
-/* ── Copy buttons ────────────────────────────────────────── */
-.copy-btn {
-  font-family: 'Fira Code', monospace;
-  font-size: 0.65rem;
-  letter-spacing: 0.1em;
-  color: #4b5563;
-  background: transparent;
-  border: 1px solid #1c2530;
-  border-radius: 4px;
-  padding: 0.2rem 0.55rem;
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
+.term-btn-red:hover {
+  color: #f85149;
+  border-color: #f8514955;
 }
-
-.copy-btn:hover {
-  color: #00ff88;
-  border-color: #00ff8855;
+.term-btn.copied {
+  color: #39d353;
+  border-color: #39d35399;
+  animation: flash-copy 0.5s ease;
 }
-
-.copy-btn.copied {
-  color: #00ff88;
-  border-color: #00ff88aa;
-  animation: flash-copy 0.6s ease;
-}
-
 @keyframes flash-copy {
-  0%   { box-shadow: 0 0 0 0 #00ff8866; }
-  50%  { box-shadow: 0 0 0 6px #00ff8800; }
-  100% { box-shadow: none; }
+  0%  { box-shadow: 0 0 0 0 #39d35355; }
+  50% { box-shadow: 0 0 0 5px transparent; }
+  100%{ box-shadow: none; }
 }
 
-/* ── Breakdown table rows ────────────────────────────────── */
-.breakdown-row td {
-  padding: 0.45rem 1rem;
-  color: #9ca3af;
-  font-family: 'Fira Code', 'Courier New', monospace;
+/* ── Error bar ───────────────────────────────────────────── */
+.term-error-bar {
+  background: #200d0d;
+  border: 1px solid #f8514944;
+  border-radius: 6px;
+  padding: 0.5rem 0.85rem;
   font-size: 0.72rem;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Breakdown table ─────────────────────────────────────── */
+.term-table-wrap {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.breakdown-row td {
+  padding: 0.38rem 0.75rem;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.7rem;
   vertical-align: middle;
-  transition: background 0.15s;
+  transition: background 0.12s;
+  color: #8b949e;
 }
+.breakdown-row:hover td { background: #21262d; }
 
-.breakdown-row:hover td {
-  background-color: #141a1f;
-}
+.breakdown-row td.col-index  { color: #3d444d; }
+.breakdown-row td.col-char   { color: #e2e8f0; font-weight: 600; }
+.breakdown-row td.col-ascii  { color: #e3b341; }
+.breakdown-row td.col-binary { color: #39d353; letter-spacing: 0.1em; }
+.breakdown-row td.col-hex    { color: #58a6ff; letter-spacing: 0.08em; }
 
-.breakdown-row td.col-index  { color: #4b5563; }
-.breakdown-row td.col-char   { color: #e2e8f0; font-weight: 600; letter-spacing: 0.05em; }
-.breakdown-row td.col-ascii  { color: #fbbf24; }
-.breakdown-row td.col-binary { color: #00ff88; letter-spacing: 0.12em; }
-.breakdown-row td.col-hex    { color: #00d4ff; letter-spacing: 0.12em; }
-
-/* ── Responsive tweaks ───────────────────────────────────── */
+/* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .panel-textarea {
-    min-height: 130px;
-    font-size: 0.72rem;
-  }
-
-  .panel-title {
-    font-size: 0.7rem;
-  }
+  .term-textarea { font-size: 0.72rem; }
+  .mode-tab      { font-size: 0.68rem; padding: 0.3rem 0.55rem; }
+  .term-panel-body { min-height: 140px; }
 }
