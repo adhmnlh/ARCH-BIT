@@ -1,0 +1,252 @@
+/* ============================================================
+   style.css  —  Arch-Bit: Low-Level Data Translator
+   Theme: Dark Mode · Neon Green / Circuit Blue
+   ============================================================ */
+
+/* ── Base ────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #0a0d0f;
+  /* Subtle dot-grid pattern — evokes a PCB/circuit board */
+  background-image: radial-gradient(circle, #1c2530 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Custom scrollbar — dark-themed */
+::-webkit-scrollbar         { width: 6px; height: 6px; }
+::-webkit-scrollbar-track   { background: #0f1317; }
+::-webkit-scrollbar-thumb   { background: #1c2530; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #00ff8855; }
+
+/* ── Logo hex icon pulse ─────────────────────────────────── */
+.logo-icon {
+  color: #00ff88;
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { text-shadow: 0 0 6px #00ff88aa, 0 0 16px #00ff8844; }
+  50%       { text-shadow: 0 0 14px #00ff88cc, 0 0 30px #00ff8866; }
+}
+
+/* ── Status dot blink ────────────────────────────────────── */
+.status-dot {
+  animation: blink 1.8s step-start infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+/* ── Panel card ──────────────────────────────────────────── */
+.panel {
+  background-color: #0f1317;
+  border: 1px solid #1c2530;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: 0 4px 32px #00000088;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  min-height: 340px;
+}
+
+.panel-green:hover {
+  border-color: #00ff8840;
+  box-shadow: 0 4px 32px #00000088, 0 0 24px #00ff8818;
+}
+
+.panel-blue:hover {
+  border-color: #00d4ff40;
+  box-shadow: 0 4px 32px #00000088, 0 0 24px #00d4ff18;
+}
+
+/* ── Panel header row ────────────────────────────────────── */
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.panel-label {
+  font-size: 0.6rem;
+  color: #57606a;
+  letter-spacing: 0.1em;
+  min-width: 1.5rem;
+}
+
+.panel-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  flex: 1;
+}
+
+.panel-badge {
+  font-size: 0.6rem;
+  color: #57606a;
+  background: #141a1f;
+  border: 1px solid #1c2530;
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+/* ── Panel description ───────────────────────────────────── */
+.panel-desc {
+  font-size: 0.7rem;
+  color: #4b5563;
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+  font-family: 'Fira Code', 'Courier New', monospace;
+}
+
+/* ── Textarea ────────────────────────────────────────────── */
+.panel-textarea {
+  width: 100%;
+  background-color: #141a1f;
+  border: 1px solid #1c2530;
+  border-radius: 0.5rem;
+  color: #00ff88;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.78rem;
+  line-height: 1.8;
+  padding: 0.75rem;
+  resize: none;
+  min-height: 160px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  caret-color: #00ff88;
+}
+
+/* Input panel: slightly brighter caret/selection */
+#inputText {
+  color: #e2e8f0;
+  caret-color: #00ff88;
+}
+
+#inputText:focus {
+  border-color: #00ff8866;
+  box-shadow: 0 0 0 2px #00ff8818, inset 0 0 8px #00ff8808;
+}
+
+/* Read-only output textareas */
+#outputBinary,
+#outputHex {
+  cursor: default;
+  user-select: text;
+}
+
+#outputBinary {
+  color: #00ff88;
+}
+
+#outputHex {
+  color: #00d4ff;
+}
+
+#outputHex:focus {
+  border-color: #00d4ff66;
+  box-shadow: 0 0 0 2px #00d4ff18, inset 0 0 8px #00d4ff08;
+}
+
+.panel-textarea::placeholder {
+  color: #2d3748;
+}
+
+/* ── Panel footer row ────────────────────────────────────── */
+.panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.6rem;
+}
+
+/* ── Clear button ────────────────────────────────────────── */
+.clear-btn {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: #4b5563;
+  background: transparent;
+  border: 1px solid #1c2530;
+  border-radius: 4px;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.clear-btn:hover {
+  color: #f87171;
+  border-color: #f8717155;
+}
+
+/* ── Copy buttons ────────────────────────────────────────── */
+.copy-btn {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: #4b5563;
+  background: transparent;
+  border: 1px solid #1c2530;
+  border-radius: 4px;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.copy-btn:hover {
+  color: #00ff88;
+  border-color: #00ff8855;
+}
+
+.copy-btn.copied {
+  color: #00ff88;
+  border-color: #00ff88aa;
+  animation: flash-copy 0.6s ease;
+}
+
+@keyframes flash-copy {
+  0%   { box-shadow: 0 0 0 0 #00ff8866; }
+  50%  { box-shadow: 0 0 0 6px #00ff8800; }
+  100% { box-shadow: none; }
+}
+
+/* ── Breakdown table rows ────────────────────────────────── */
+.breakdown-row td {
+  padding: 0.45rem 1rem;
+  color: #9ca3af;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.72rem;
+  vertical-align: middle;
+  transition: background 0.15s;
+}
+
+.breakdown-row:hover td {
+  background-color: #141a1f;
+}
+
+.breakdown-row td.col-index  { color: #4b5563; }
+.breakdown-row td.col-char   { color: #e2e8f0; font-weight: 600; letter-spacing: 0.05em; }
+.breakdown-row td.col-ascii  { color: #fbbf24; }
+.breakdown-row td.col-binary { color: #00ff88; letter-spacing: 0.12em; }
+.breakdown-row td.col-hex    { color: #00d4ff; letter-spacing: 0.12em; }
+
+/* ── Responsive tweaks ───────────────────────────────────── */
+@media (max-width: 768px) {
+  .panel-textarea {
+    min-height: 130px;
+    font-size: 0.72rem;
+  }
+
+  .panel-title {
+    font-size: 0.7rem;
+  }
+}
